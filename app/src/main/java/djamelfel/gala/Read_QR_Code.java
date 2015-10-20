@@ -32,7 +32,7 @@ public class Read_QR_Code extends ActionBarActivity implements View.OnClickListe
     static final String ACTION_SCAN = "com.google.zxing.client.android.SCAN";
     private ArrayList<Key_List> key_list;
 
-    //TODO: bouton retour + remove_key
+    //TODO: remove_key
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

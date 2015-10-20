@@ -2,7 +2,6 @@ package djamelfel.gala;
 
 import android.app.ActionBar;
 import android.content.Intent;
-import android.database.MatrixCursor;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
@@ -11,14 +10,13 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ListView;
-import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 
 public class Settings extends ActionBarActivity implements View.OnClickListener {
     private ArrayList<Key_List> key_list;
+    private ListViewAdapter adapter = null;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -31,9 +29,22 @@ public class Settings extends ActionBarActivity implements View.OnClickListener 
             key_list = intent.getParcelableArrayListExtra("key_list");
         }
         if (key_list != null) {
-            updateView();
+
+            adapter = new ListViewAdapter(this, R.layout.row_item, key_list);
+            ListView listView = (ListView) findViewById(R.id.listView);
+            listView.setAdapter(adapter);
+/*
+            Iterator itr = key_list.iterator();
+            while(itr.hasNext()) {
+                Key_List keyList = (Key_List)itr.next();
+                adapter.add(keyList);
+            }
+*/
         } else {
             key_list = new ArrayList<Key_List>();
+            adapter = new ListViewAdapter(this, R.layout.row_item, key_list);
+            ListView listView = (ListView) findViewById(R.id.listView);
+            listView.setAdapter(adapter);
         }
         findViewById(R.id.new_key).setOnClickListener(this);
      }
@@ -53,13 +64,17 @@ public class Settings extends ActionBarActivity implements View.OnClickListener 
                             .LENGTH_LONG).show();
                 }
                 else {
-                    key_list.add(new Key_List(Integer.parseInt(idS), keyS));
+                    adapter.add(new Key_List(Integer.parseInt(idS), keyS));
                     id.setText("");
                     key.setText("");
-                    updateView();
                 }
                 break;
         }
+    }
+
+    public void removeKeyListOnClickHandler(View v) {
+        Key_List keyList = (Key_List)v.getTag();
+        adapter.remove(keyList);
     }
 
     @Override
@@ -91,28 +106,4 @@ public class Settings extends ActionBarActivity implements View.OnClickListener 
         }
     }
 
-    public void updateView() {
-        String[] columns = new String[]{"_id", "id", "key"};
-        MatrixCursor matrixCursor = new MatrixCursor(columns);
-
-        startManagingCursor(matrixCursor);
-
-        Iterator<Key_List> itr = key_list.iterator();
-        int i = 0;
-        while(itr.hasNext()) {
-            Key_List kl = itr.next();
-            matrixCursor.addRow(new Object[]{
-                    i++, kl.getId(), kl.getKey()
-            });
-        }
-
-        String[] from = new String[]{"id", "key"};
-        int[] to = new int[]{R.id.textViewCol1, R.id.textViewCol2};
-
-        SimpleCursorAdapter adapter = new SimpleCursorAdapter(this, R.layout.row_item,
-                matrixCursor, from, to, 0);
-
-        ListView lv = (ListView) findViewById(R.id.listView);
-        lv.setAdapter(adapter);
-    }
 }
