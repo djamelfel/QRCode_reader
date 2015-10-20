@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Gala de prestige UTBM</string>
+    <string name="settings">Réglages</string>
+    <string name="new_key">Nouvel clé</string>
+    <string name="empty_text_area">Veuillez saisir les champs</string>
+    <string name="stepBack">Retour</string>
+    <string name="scan">Scan</string>
+    <string name="scanner">Scanner Code</string>
+    <string name="error_lib_empty">Veuillez entrer au moins une clé valide</string>
+    <string name="ebillet_true">Le billet est valide</string>
+    <string name="ebillet_false">Le billet n\'est pas valide</string>
+    <string name="id">id</string>
+    <string name="key">key</string>
+    <string name="barCode">code bar</string>
+    <string name="check">Vérifier</string>
+</resources>
