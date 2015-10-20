@@ -101,7 +101,6 @@ public class Settings extends ActionBarActivity implements View.OnClickListener 
         int i = 0;
         while(itr.hasNext()) {
             Key_List kl = itr.next();
-
             matrixCursor.addRow(new Object[]{
                     i++, kl.getId(), kl.getKey()
             });
@@ -113,9 +112,7 @@ public class Settings extends ActionBarActivity implements View.OnClickListener 
         SimpleCursorAdapter adapter = new SimpleCursorAdapter(this, R.layout.row_item,
                 matrixCursor, from, to, 0);
 
-
         ListView lv = (ListView) findViewById(R.id.listView);
-        lv.geti
         lv.setAdapter(adapter);
     }
 }
