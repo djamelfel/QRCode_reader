@@ -119,10 +119,9 @@ public class Read_QR_Code extends ActionBarActivity implements View.OnClickListe
                 String hmac = hmacDigest(str[0] + " " + str[1] + " " + str[2], key.getKey(),
                         "HmacSHA1");
                 if(str[3].equals(hmac.substring(0, 8).toUpperCase())) {
-                    display(getString(R.string.ebillet_true), true);
+                    display(getString(R.string.ebillet_true) + ": " + str[2] + " places", true);
                     found = true;
                 }
-                return;
             }
         }
         if (!found) {
