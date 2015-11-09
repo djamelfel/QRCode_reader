@@ -4,7 +4,6 @@ import android.app.ActionBar;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -16,6 +15,7 @@ import java.util.ArrayList;
 
 public class Settings extends ActionBarActivity implements View.OnClickListener {
     private ArrayList<Key_List> key_list;
+    private ArrayList<User> users = null;
     private ListViewAdapter adapter = null;
 
     @Override
@@ -23,23 +23,15 @@ public class Settings extends ActionBarActivity implements View.OnClickListener 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        Intent intent = getIntent();
-        if (intent != null) {
-            Log.i("intent", "variable");
-            key_list = intent.getParcelableArrayListExtra("key_list");
+        Bundle extras = getIntent().getExtras();
+        if (extras != null) {
+            key_list = extras.getParcelableArrayList("key_list");
+            users = extras.getParcelableArrayList("users");
         }
         if (key_list != null) {
-
             adapter = new ListViewAdapter(this, R.layout.row_item, key_list);
             ListView listView = (ListView) findViewById(R.id.listView);
             listView.setAdapter(adapter);
-/*
-            Iterator itr = key_list.iterator();
-            while(itr.hasNext()) {
-                Key_List keyList = (Key_List)itr.next();
-                adapter.add(keyList);
-            }
-*/
         } else {
             key_list = new ArrayList<Key_List>();
             adapter = new ListViewAdapter(this, R.layout.row_item, key_list);
@@ -81,6 +73,7 @@ public class Settings extends ActionBarActivity implements View.OnClickListener 
     public void onBackPressed() {
         Intent intent = new Intent(Settings.this, Read_QR_Code.class);
         intent.putParcelableArrayListExtra("key_list", key_list);
+        intent.putParcelableArrayListExtra("users", users);
         startActivity(intent);
     }
 
@@ -99,6 +92,7 @@ public class Settings extends ActionBarActivity implements View.OnClickListener 
             case android.R.id.home:
                 Intent intent = new Intent(Settings.this, Read_QR_Code.class);
                 intent.putParcelableArrayListExtra("key_list", key_list);
+                intent.putParcelableArrayListExtra("users", users);
                 startActivity(intent);
                 return true;
             default:

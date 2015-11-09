@@ -13,4 +13,5 @@
     <string name="key">key</string>
     <string name="barCode">code bar</string>
     <string name="check">Vérifier</string>
+    <string name="sizeOff">Nombre de place maximum atteint : </string>
 </resources>
