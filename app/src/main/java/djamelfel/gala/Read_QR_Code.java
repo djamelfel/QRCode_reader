@@ -3,7 +3,6 @@ package djamelfel.gala;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
@@ -11,21 +10,20 @@ import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.JsonHttpResponseHandler;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -35,13 +33,17 @@ import java.util.Iterator;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import cz.msebera.android.httpclient.Header;
+import cz.msebera.android.httpclient.entity.StringEntity;
+
 
 public class Read_QR_Code extends ActionBarActivity implements View.OnClickListener {
 
     static final String ACTION_SCAN = "com.google.zxing.client.android.SCAN";
-    static final String FILENAME = "gala_users";
     private ArrayList<Key_List> key_list = null;
-    private ArrayList<User> users = null;
+    private String server;
+    private EditText _nbrPlace;
+    private EditText _barCode;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,84 +53,33 @@ public class Read_QR_Code extends ActionBarActivity implements View.OnClickListe
         Intent intent = getIntent();
         if (intent != null) {
             key_list = intent.getParcelableArrayListExtra("key_list");
-            users = intent.getParcelableArrayListExtra("users");
+            server = intent.getStringExtra("server");
         }
 
-        findViewById(R.id.ButtonBarCode).setOnClickListener(this);
+        _nbrPlace = (EditText)findViewById(R.id.id_nbrPlace);
+        _nbrPlace.setText("1", TextView.BufferType.EDITABLE);
 
-        readFromFile();
-    }
+        _barCode = (EditText)findViewById(R.id.barCode);
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        try {
-            FileOutputStream fOut = openFileOutput(FILENAME, Context.MODE_PRIVATE);
-            OutputStreamWriter writer = new OutputStreamWriter(fOut);
-            writer.write(writeToFile());
-            writer.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void readFromFile() {
-        try {
-            InputStream inputStream = openFileInput(FILENAME);
-
-            if ( inputStream != null ) {
-                InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-                String receiveString = "";
-                StringBuilder stringBuilder = new StringBuilder();
-
-                while ( (receiveString = bufferedReader.readLine()) != null )
-                    stringBuilder.append(receiveString);
-
-                inputStream.close();
-
-                if(stringBuilder.toString().isEmpty())
-                    return;
-
-                String str[] = stringBuilder.toString().split(";");
-                users = new ArrayList<User>();
-
-                for (int i=0; i<str.length; i++) {
-                    users.add(new User(str[i]));
-                }
-            }
-        }
-        catch (FileNotFoundException e) {
-            Log.e("TAG", "File not found: " + e.toString());
-        } catch (IOException e) {
-            Log.e("TAG", "Can not read file: " + e.toString());
-        }
-    }
-
-    public String writeToFile() {
-        String str = "";
-        Iterator<User> itr = users.iterator();
-        while(itr.hasNext()) {
-            User user = itr.next();
-            str = str + user.writeToFile() + ";";
-        }
-        return str;
+        Button buttonBarCode = (Button) findViewById(R.id.ButtonBarCode);
+        buttonBarCode.setOnClickListener(this);
     }
 
     @Override
     public void onClick(View v) {
         switch(v.getId()) {
             case R.id.ButtonBarCode :
-                EditText barCode = (EditText)findViewById(R.id.barCode);
-                String str = barCode.getText().toString();
+                // Save and Reset to default code bar
+                String str = _barCode.getText().toString();
+                //_barCode.setText("", TextView.BufferType.EDITABLE);
+
                 if (str.isEmpty()) {
                     display(getString(R.string.empty_text_area), false);
                 }
                 else {
                     validateTicket(str);
                 }
+                break;
         }
     }
 
@@ -139,11 +90,10 @@ public class Read_QR_Code extends ActionBarActivity implements View.OnClickListe
         }
         try {
             Intent intent = new Intent(ACTION_SCAN);
-            intent.putExtra("SCAN_MODE", "QR_CODE_MODE");
-            startActivityForResult(intent, 0);
+            startActivityForResult(intent, 1);
         } catch (ActivityNotFoundException anfe) {
-            showDialog(Read_QR_Code.this, "Auncun lecteur de QRCode n'a été trouvé", "Télécharger" +
-                    " un scanner ?", "Oui", "Non").show();
+            showDialog(Read_QR_Code.this, getString(R.string.noQRCodeApplication), getString(R
+                    .string.downloadQRCode), "Oui", "Non").show();
         }
     }
 
@@ -171,7 +121,7 @@ public class Read_QR_Code extends ActionBarActivity implements View.OnClickListe
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        if (requestCode == 0) if (resultCode == RESULT_OK) {
+        if (resultCode == RESULT_OK) {
             String contents = intent.getStringExtra("SCAN_RESULT");
 
             validateTicket(contents);
@@ -179,52 +129,70 @@ public class Read_QR_Code extends ActionBarActivity implements View.OnClickListe
     }
 
     public void validateTicket(String result) {
-        String str[] = result.split(" ");
-        Boolean found = false;
+        final String str[] = result.split(" ");
+        int nbrPlaceSelect = Integer.parseInt(_nbrPlace.getText().toString());
+        int nbrPlaceTot = Integer.parseInt(str[2]);
+        Boolean idFound = false;
+
+        // Reset to default number of place
+        _nbrPlace.setText("1", TextView.BufferType.EDITABLE);
+
+        if (Integer.parseInt(str[2]) < nbrPlaceSelect) {
+            display(getString(R.string.nbPlaceOversize), false);
+            return;
+        }
 
         Iterator<Key_List> itr = key_list.iterator();
         while (itr.hasNext()) {
             Key_List key = itr.next();
+
             if (key.getId() == Integer.parseInt(str[1])) {
-                String hmac = hmacDigest(str[0] + " " + str[1] + " " + str[2], key.getKey(),
-                        "HmacSHA1");
-                if(str[3].equals(hmac.substring(0, 8).toUpperCase())) {
-                    if(alreadyChecked(str)) {
-                        display(getString(R.string.ebillet_true) + ": " + str[2] + " places", true);
-                        return;
+                // generate HMAC in hex
+                String hmac = hmacDigest(str[0]+" "+str[1]+" "+str[2], key.getKey(), "HmacSHA1");
+
+                if(str[3].equals(hmac.substring(0, str[3].length()).toUpperCase())) {
+                    // Ticket is valid
+                    idFound = true;
+
+                    JSONObject jsonParams = new JSONObject();
+                    StringEntity entity = null;
+
+                    try {
+                        // Set parameters in JSON structure
+                        jsonParams.put("verif", str[3]);
+                        jsonParams.put("nb", nbrPlaceSelect);
+                        jsonParams.put("qt", nbrPlaceTot);
+
+                        // Set JSON parameters for Post request
+                        entity = new StringEntity(jsonParams.toString());
+
+
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
                     }
-                    else {
-                        display(getString(R.string.sizeOff) + str[2], false);
-                        return;
-                    }
+
+                    // Send Post Request
+                    AsyncHttpClient client = new AsyncHttpClient();
+                    client.post(this, server + "/validate", entity, "application/json",
+                            new JsonHttpResponseHandler() {
+                        @Override
+                        public void onSuccess(int statusCode, Header[] headers, JSONArray response) {
+                            Log.i("debug", "toto ");
+                            Log.i("debug", response.toString());
+                        }
+
+                        @Override
+                        public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
+                            display(getString(R.string.serverError), false);
+                        }
+                    });
                 }
             }
         }
-        if (!found) {
+        if (!idFound) {
             display(getString(R.string.ebillet_false), false);
-        }
-    }
-
-    public boolean alreadyChecked(String[] str) {
-        if(users == null)
-            users = new ArrayList<User>();
-
-        if(users.isEmpty()) {
-            users.add(new User(str[0], str[1], Integer.parseInt(str[2])));
-            return true;
-        }
-        else {
-            Iterator<User> itr = users.iterator();
-            while (itr.hasNext()) {
-                User user = itr.next();
-                if (user.getId_user().equals(str[0]))
-                    return user.isChecked(str[1], Integer.parseInt(str[2]));
-                else {
-                    users.add(new User(str[0], str[1], Integer.parseInt(str[2])));
-                    return true;
-                }
-            }
-            return false;
         }
     }
 
@@ -247,34 +215,6 @@ public class Read_QR_Code extends ActionBarActivity implements View.OnClickListe
         toast.setDuration(Toast.LENGTH_LONG);
         toast.setView(layout);
         toast.show();
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        super.onCreateOptionsMenu(menu);
-        getMenuInflater().inflate(R.menu.menu_read__qr__code, menu);
-
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-
-        if (id == R.id.action_settings) {
-            Intent intent = new Intent(Read_QR_Code.this, Settings.class);
-            if (key_list != null)
-                if (!key_list.isEmpty()) {
-                    Bundle extras = new Bundle();
-                    extras.putParcelableArrayList("key_list", key_list);
-                    extras.putParcelableArrayList("users", users);
-                    intent.putExtras(extras);
-                }
-            startActivity(intent);
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 
     public static String hmacDigest(String msg, String keyString, String algo) {
